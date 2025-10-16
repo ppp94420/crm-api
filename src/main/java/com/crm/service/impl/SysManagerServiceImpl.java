@@ -35,6 +35,14 @@ public class SysManagerServiceImpl extends ServiceImpl<SysManagerMapper, SysMana
     @Override
     public PageResult<SysManagerVO> page(SysManagerQuery query) {
         Page<SysManagerVO> page = new Page<>(query.getPage(), query.getLimit());
+        List<Integer> departIds = query.getDepartId();
+        if (departIds != null && !departIds.isEmpty()) {
+            // 取最后一个 Integer 类型的 departId
+            query.setCheckedDepartId(departIds.get(departIds.size() - 1));
+        }
+        //if (query.getDepartId() != null && !query.getDepartId().isEmpty()) {
+            //query.setCheckedDepartId(query.getDepartId().getLast());
+        //}
         List<SysManagerVO> list = baseMapper.getManagerPage(page, query);
         return new PageResult<>(list, page.getTotal());
     }

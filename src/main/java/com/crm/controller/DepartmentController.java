@@ -11,6 +11,9 @@ import io.swagger.annotations.Api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,12 +31,13 @@ import java.util.Objects;
  * @author crm
  * @since 2025-10-12
  */
-@Tag(name = "部门管理")
+//@Tag(name = "部门管理")
 @Api(tags = "部门管理")
 @RestController
 @RequestMapping("department")
 @AllArgsConstructor
 public class DepartmentController {
+    private static final Logger log = LoggerFactory.getLogger(DepartmentController.class);
     private final DepartmentService departmentService;
 
     @PostMapping("page")

@@ -66,7 +66,6 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
 
 
     }
-
     private Department getChildList(Department department, List<Department> list) {
         list.forEach(item -> {
             if (department.getId().equals(item.getParentId())) {
@@ -161,7 +160,7 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
     }
     @Override
     public void removeDepartment(IdQuery query) {
-        List<SysManager> sysManagers = sysManagerMapper.selectList(new LambdaQueryWrapper<SysManager>().eq(SysManager::getId, query.getId()));
+        List<SysManager> sysManagers = sysManagerMapper.selectList(new LambdaQueryWrapper<SysManager>().eq(SysManager::getDepartId, query.getId()));
         if (!sysManagers.isEmpty()) {
             throw new ServerException("部门下有管理员,请解绑后再删除");
         }

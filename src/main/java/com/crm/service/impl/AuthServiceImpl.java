@@ -28,7 +28,6 @@ public class AuthServiceImpl implements AuthService {
 
     private final TokenStoreCache tokenStoreCache;
     private final AuthenticationManager authenticationManager;
-
     @Override
     public SysTokenVO loginByAccount(SysAccountLoginVO params) {
         Authentication authentication;

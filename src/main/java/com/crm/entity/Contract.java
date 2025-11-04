@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
@@ -49,7 +50,7 @@ public class Contract {
 
     @ApiModelProperty("签约时间")
     @TableField("sign_time")
-    private LocalDateTime signTime;
+    private LocalDate signTime;
 
     @ApiModelProperty("客户id")
     @TableField("customer_id")
@@ -61,7 +62,7 @@ public class Contract {
 
     @ApiModelProperty("合同状态 0-初始化，1-审核通过，2-审核未通过")
     @TableField("status")
-    private Byte status;
+    private Integer status;
 
     @ApiModelProperty("备注")
     @TableField("remark")
@@ -70,7 +71,7 @@ public class Contract {
     @ApiModelProperty("逻辑删除 0-未删除，1-已删除")
     @TableField(value = "delete_flag", fill = FieldFill.INSERT)
     @TableLogic
-    private Byte deleteFlag;
+    private Integer deleteFlag;
 
     @ApiModelProperty("创建时间")
     @TableField(value = "create_time", fill = FieldFill.INSERT)
@@ -90,9 +91,9 @@ public class Contract {
 
     @ApiModelProperty("合同开始时间")
     @TableField("start_time")
-    private LocalDateTime startTime;
+    private LocalDate startTime;
 
     @ApiModelProperty("合同结束时间")
     @TableField("end_time")
-    private LocalDateTime endTime;
+    private LocalDate endTime;
 }

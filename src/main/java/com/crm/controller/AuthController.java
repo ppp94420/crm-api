@@ -1,7 +1,9 @@
 package com.crm.controller;
 
 
+import com.crm.common.aop.Log;
 import com.crm.common.result.Result;
+import com.crm.enums.BusinessType;
 import com.crm.security.utils.TokenUtils;
 import com.crm.service.AuthService;
 import com.crm.vo.SysAccountLoginVO;
@@ -36,12 +38,14 @@ public class AuthController {
 
     @PostMapping("login")
     @Operation(summary = "账号密码登录")
+    @Log(title = "账号密码登录",businessType = BusinessType.SELECT)
     public Result<SysTokenVO> login(@RequestBody SysAccountLoginVO login) {
         return Result.ok(authService.loginByAccount(login));
     }
 
     @PostMapping("logout")
     @Operation(summary = "退出")
+    @Log(title = "退出账号",businessType = BusinessType.SELECT)
     public Result<String> logout(HttpServletRequest request) {
         authService.logout(TokenUtils.getAccessToken(request));
 

@@ -56,10 +56,13 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
 
     @Override
     public PageResult<ContractVO> getPage(ContractQuery query) {
-        Page<ContractVO> page = new Page<>();
+        Page<ContractVO> page = new Page<>(query.getPage(), query.getLimit());
         MPJLambdaWrapper<Contract> wrapper = new MPJLambdaWrapper<>();
         if (StringUtils.isNotBlank(query.getName())) {
             wrapper.like(Contract::getName, query.getName());
+        }
+        if (query.getStatus() != null) {
+            wrapper.eq(Contract::getStatus, query.getStatus());
         }
         if (query.getCustomerId() != null) {
             wrapper.eq(Contract::getCustomerId, query.getCustomerId());
@@ -67,27 +70,21 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         if (StringUtils.isNotBlank(query.getNumber())) {
             wrapper.like(Contract::getNumber, query.getNumber());
         }
-        if (query.getStatus() != null) {
-            wrapper.eq(Contract::getStatus, query.getStatus());
-        }
-        wrapper.orderByDesc(Contract::getCreateTime);
         // 只查询目前登录的员工签署的合同列表
         Integer managerId = SecurityUser.getManagerId();
         wrapper.selectAll(Contract.class)
                 .selectAs(Customer::getName, ContractVO::getCustomerName)
                 .leftJoin(Customer.class, Customer::getId, Contract::getCustomerId)
-                .eq(Contract::getOwnerId, managerId);
-
+                .eq(Contract::getOwnerId, managerId).orderByDesc(Contract::getCreateTime);
         Page<ContractVO> result = baseMapper.selectJoinPage(page, ContractVO.class, wrapper);
         // 查询合同签署的商品信息
         if (!result.getRecords().isEmpty()) {
             result.getRecords().forEach(contractVO -> {
                 List<ContractProduct> contractProducts = contractProductMapper.selectList(new LambdaQueryWrapper<ContractProduct>().eq(ContractProduct::getCId, contractVO.getId()));
-                contractVO.setProducts(ContractConvert.INSTANCE.convertToProductVOList(contractProducts));
+                contractVO.setProducts(ContractConvert.INSTANCE.toProductVOList(contractProducts));
             });
         }
-
-        return new PageResult<>(result.getRecords(), result.getTotal());
+        return new PageResult<>(result.getRecords(), page.getTotal());
     }
 
     @Override
@@ -98,23 +95,24 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
             throw new ServerException("合同名称已存在，请勿重复添加");
         }
         //转换并保存合同关系
-        Contract contract = ContractConvert.INSTANCE.convert(contractVO);
+        Contract contract = ContractConvert.INSTANCE.toConvert(contractVO);
         contract.setCreaterId(SecurityUser.getManagerId());
         contract.setOwnerId(SecurityUser.getManagerId());
         if (isNew) {
             contract.setNumber(generateContractNumber());
             baseMapper.insert(contract);
         }else {
-            Contract oldContract = baseMapper.selectById(contractVO.getId());
-            if (oldContract == null){
+            Contract dbContract = baseMapper.selectById(contract.getId());
+            if (dbContract == null){
                 throw new ServerException("合同不存在");
             }
-            if (oldContract.getStatus() == 1){
-                throw new ServerException("合同正在审核，请勿执行修改操作");
+            if (dbContract.getStatus() == 1){
+                throw new ServerException("该合同已审核通过，请勿修改");
             }
             baseMapper.updateById(contract);
         }
         //处理商品和合同的关联关系
+        handleContractProducts(contract.getId(), contractVO.getProducts());
     }
 
     private void handleContractProducts(Integer contractId, List<ProductVO> newProductList) {
@@ -128,10 +126,12 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         List<ProductVO> newAdded = newProductList.stream()
                 .filter(np -> oldProducts.stream().noneMatch(op -> op.getPId().equals(np.getId())))
                 .toList();
-        for (ProductVO productVO : newAdded) {
-            Product product = checkProductStock(productVO.getId(), productVO.getCount());
-            decreaseStock(product, productVO.getCount());
-            contractProductMapper.insert(buildContractProduct(contractId, product, productVO.getCount()));
+        for (ProductVO p : newAdded) {
+            Product product = checkProductStock(p.getId(), p.getCount());
+            decreaseStock(product, p.getCount());
+            //contractProductMapper.insert(buildContractProduct(contractId, product, p.getCount()));
+            ContractProduct cp = buildContractProduct(contractId, product, p.getCount());
+            contractProductMapper.insert(cp);
         }
 
         // === 2. 修改数量 ===
@@ -143,15 +143,13 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
             ContractProduct old = oldProducts.stream()
                     .filter(op -> op.getPId().equals(p.getId()))
                     .findFirst().orElseThrow();
-
             Product product = checkProductStock(p.getId(), 0);
-
             int diff = p.getCount() - old.getCount();
 
             // 库存调整
             if (diff > 0) {
                 decreaseStock(product, diff);
-            }else{
+            }else if (diff < 0){
                 increaseStock(product, -diff);
             }
             // 更新合同商品
@@ -172,22 +170,22 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         }
     }
     private ContractProduct buildContractProduct(Integer contractId, Product  product, int count) {
-        ContractProduct contractProduct = new ContractProduct();
-        contractProduct.setCId(contractId);
-        contractProduct.setPId(product.getId());
-        contractProduct.setPName(product.getName());
-        contractProduct.setPrice(product.getPrice());
-        contractProduct.setCount(count);
-        contractProduct.setTotalPrice(product.getPrice().multiply(new java.math.BigDecimal(count)));
-        return contractProduct;
+        ContractProduct cp = new ContractProduct();
+        cp.setCId(contractId);
+        cp.setPId(product.getId());
+        cp.setPName(product.getName());
+        cp.setPrice(product.getPrice());
+        cp.setCount(count);
+        cp.setTotalPrice(product.getPrice().multiply(BigDecimal.valueOf(count)));
+        return cp;
     }
 
-    private Product checkProductStock(Integer productId,int count) {
+    private Product checkProductStock(Integer productId,int needCount) {
         Product product = productMapper.selectById(productId);
         if (product == null) {
             throw new ServerException("商品不存在");
         }
-        if (product.getStock() < count) {
+        if (needCount > 0 && product.getStock() < needCount) {
             throw new ServerException("商品库存不足");
         }
         return product;

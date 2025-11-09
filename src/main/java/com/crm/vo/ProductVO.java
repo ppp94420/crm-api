@@ -22,4 +22,11 @@ public class ProductVO {
     private BigDecimal totalPrice;
     private Integer count;
     private BigDecimal price;
+
+    public Integer getId() {
+        if (this.Id == null) {
+            return this.pId;
+        }
+        return this.Id;
+    }
 }

@@ -1,41 +1,31 @@
 package com.crm.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.crm.common.exception.ServerException;
 import com.crm.common.result.PageResult;
 import com.crm.convert.ContractConvert;
-import com.crm.entity.Contract;
-import com.crm.entity.ContractProduct;
-import com.crm.entity.Customer;
-import com.crm.entity.Product;
+import com.crm.entity.*;
+import com.crm.mapper.ApprovalMapper;
 import com.crm.mapper.ContractMapper;
 import com.crm.mapper.ContractProductMapper;
 import com.crm.mapper.ProductMapper;
+import com.crm.query.ApprovalQuery;
 import com.crm.query.ContractQuery;
+import com.crm.query.IdQuery;
 import com.crm.security.user.SecurityUser;
 import com.crm.service.ContractService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.crm.utils.NumberUtils;
 import com.crm.vo.ContractVO;
 import com.crm.vo.ProductVO;
-import com.github.yulichang.base.MPJBaseMapper;
-import com.github.yulichang.interfaces.MPJBaseJoin;
 import com.github.yulichang.wrapper.MPJLambdaWrapper;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.ibatis.session.ResultHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 import static com.crm.utils.NumberUtils.generateContractNumber;
 
@@ -53,6 +43,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     private final ContractProductMapper contractProductMapper;
 
     private final ProductMapper productMapper;
+    private final ApprovalMapper approvalMapper;
 
     @Override
     public PageResult<ContractVO> getPage(ContractQuery query) {
@@ -113,6 +104,42 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         }
         //处理商品和合同的关联关系
         handleContractProducts(contract.getId(), contractVO.getProducts());
+    }
+
+    @Override
+    public void startApproval(IdQuery idQuery){
+        Contract contract = baseMapper.selectById(idQuery.getId());
+        if (contract == null) {
+            throw new ServerException("合同不存在");
+        }
+        if (contract.getStatus() != 0) {
+            throw new ServerException("该合同已审核通过，请勿重复提交");
+        }
+        contract.setStatus(1);
+        baseMapper.updateById(contract);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void approvalContract(ApprovalQuery query){
+        Contract contract = baseMapper.selectById(query.getId());
+        if (contract == null){
+            throw new ServerException("合同不存在");
+        }
+        if (contract.getStatus() != 1){
+            throw new ServerException("合同还未发起审核或已审核，请勿重复提交");
+        }
+        String approvalContent = query.getType() == 0 ? "合同审核通过" : "合同审核未通过";
+        Integer contractStatus = query.getType() == 0 ? 2 : 3;
+        Approval approval = new Approval();
+        approval.setType(0);
+        approval.setStatus(query.getType());
+        approval.setCreaterId(SecurityUser.getManagerId());
+        approval.setContractId(contract.getId());
+        approval.setComment(approvalContent);
+        approvalMapper.insert(approval);
+        contract.setStatus(contractStatus);
+        baseMapper.updateById(contract);
     }
 
     private void handleContractProducts(Integer contractId, List<ProductVO> newProductList) {

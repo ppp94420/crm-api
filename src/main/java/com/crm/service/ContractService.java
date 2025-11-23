@@ -3,7 +3,9 @@ package com.crm.service;
 import com.crm.common.result.PageResult;
 import com.crm.entity.Contract;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.crm.query.ApprovalQuery;
 import com.crm.query.ContractQuery;
+import com.crm.query.IdQuery;
 import com.crm.vo.ContractVO;
 
 import java.io.Serializable;
@@ -31,4 +33,16 @@ public interface ContractService extends IService<Contract> {
      * @param contractVO
      */
     void saveOrUpdate(ContractVO contractVO);
+
+    /**
+     * 发起合同审核
+     * @param idQuery
+     */
+    void startApproval(IdQuery idQuery);
+
+    /**
+     * 审批合同
+     * @param query
+     */
+    void approvalContract(ApprovalQuery query);
 }
